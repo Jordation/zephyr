@@ -5,8 +5,8 @@ type RouteType int8
 const (
 	Separator RouteType = iota
 	Path
-	Param
 	Regex
+	Param
 	WildCard
 	EndRoute
 	Root

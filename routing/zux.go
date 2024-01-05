@@ -2,7 +2,6 @@ package routing
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -30,7 +29,6 @@ func (m *muxer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (m *muxer) SetHandler(ctx *Context, route string) {
 	segments := strings.Split(strings.Trim(route, "/"), "/")
-	fmt.Println(segments)
 	if len(segments) == 0 {
 		ctx.Handler = m.Root.Handler
 		return
@@ -56,7 +54,7 @@ func runMuxer() error {
 
 	tokes1 := GetRouteTokens("/hello/world/{thatsIncredible}/*")
 	tokes2 := GetRouteTokens("/hello/world/~regex/*/wow")
-	tokes3 := GetRouteTokens("/hello/world/{whattheheckisup}")
+	tokes3 := GetRouteTokens("/hello/{whattheheckisup}")
 
 	m.Root.insert(tokes1)
 	m.Root.insert(tokes2)

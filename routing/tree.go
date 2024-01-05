@@ -172,7 +172,7 @@ func newNode(token RouteToken, parent *Node) *Node {
 
 	n.Handler = func(w http.ResponseWriter, r *http.Request) {
 		if n.Type == Param {
-			w.Write([]byte(fmt.Sprintf("here is the var! %v", Vars(r.Context(), n.Value))))
+			w.Write([]byte(fmt.Sprintf("here is the var! %v\n", Vars(r.Context(), n.Value))))
 		}
 		w.Write([]byte(fmt.Sprintf("hello from %v", n.pathFromRoot(""))))
 	}
