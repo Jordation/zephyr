@@ -2,6 +2,7 @@ package routing
 
 import (
 	"fmt"
+	"net/http"
 	"regexp"
 	"slices"
 	"sort"
@@ -18,13 +19,15 @@ type Node struct {
 
 	IsHandler bool
 
+	Handler http.HandlerFunc
+
 	Parent *Node
 	Children
 }
 
 type Children []*Node
 
-func (c Children) findExistingMatch(n *Node) *Node {
+func (c Children) findForInsert(n *Node) *Node {
 	for _, child := range c {
 		if n.identical(child) {
 			return child
@@ -59,10 +62,9 @@ func (parent *Node) insert(segments []RouteToken) {
 
 	head, tail := ht(segments)
 
-	nn := newNode(head)
-	nn.Parent = parent
+	nn := newNode(head, parent)
 
-	match := parent.Children.findExistingMatch(nn)
+	match := parent.Children.findForInsert(nn)
 	if match == nil { // without a match, we can just add the new node
 		parent.Children = parent.Children.append(nn)
 		nn.insert(tail)
@@ -115,12 +117,49 @@ func (n *Node) pathFromRoot(path string) string {
 	return path
 }
 
-func newNode(token RouteToken) *Node {
+func (n *Node) configureCtx(ctx *Context, routeSegs []string) ([]string, *Node) {
+	if len(routeSegs) == 0 || n.Leaf {
+		ctx.Handler = n.Handler
+		return nil, nil
+	}
+
+	var (
+		foundNode    *Node
+		currentRoute = routeSegs[0]
+	)
+
+	for _, child := range n.Children {
+		if foundNode != nil {
+			break
+		}
+
+		switch child.Type {
+		case Path:
+			if child.Value == currentRoute {
+				foundNode = child
+			}
+		case WildCard:
+			foundNode = child
+		case Regex:
+			if child.Rgx.Match([]byte(currentRoute)) {
+				foundNode = child
+			}
+		case Param:
+			ctx.Vars.Set(child.Value, currentRoute)
+			foundNode = child
+		}
+	}
+
+	return foundNode.configureCtx(ctx, routeSegs[1:])
+}
+
+func newNode(token RouteToken, parent *Node) *Node {
 	n := &Node{
 		Type:     token.Type,
 		Value:    token.Value,
 		Children: Children{},
 		Leaf:     true,
+		Parent:   parent,
 	}
 
 	switch token.Type {
@@ -129,6 +168,13 @@ func newNode(token RouteToken) *Node {
 	case WildCard:
 	case Regex:
 		n.Rgx = regexp.MustCompile(token.Value)
+	}
+
+	n.Handler = func(w http.ResponseWriter, r *http.Request) {
+		if n.Type == Param {
+			w.Write([]byte(fmt.Sprintf("here is the var! %v", Vars(r.Context(), n.Value))))
+		}
+		w.Write([]byte(fmt.Sprintf("hello from %v", n.pathFromRoot(""))))
 	}
 
 	return n

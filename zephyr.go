@@ -69,7 +69,6 @@ func New() *Zephyr {
 			Addr:         ":3000",
 			ReadTimeout:  10 * time.Second,
 			WriteTimeout: 10 * time.Second,
-			//BaseContext:  func(l net.Listener) context.Context {},
 			ConnContext: func(ctx context.Context, c net.Conn) context.Context {
 				return context.WithValue(ctx, specialCtxKey, pool.Get())
 			},

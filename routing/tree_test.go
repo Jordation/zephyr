@@ -20,7 +20,7 @@ func TestInsertRoutes(t *testing.T) {
 			"/*",
 			"/{parameterpath}",
 		}
-		root = newNode(RouteToken{Type: Root, Value: "/"})
+		root = newNode(RouteToken{Type: Root, Value: "/"}, nil)
 	)
 
 	for _, route := range routes {
