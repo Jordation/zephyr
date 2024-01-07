@@ -1,4 +1,4 @@
-package routing
+package zephyr
 
 import (
 	"fmt"
@@ -9,11 +9,11 @@ import (
 )
 
 func Test_Zuxer(t *testing.T) {
-	go func() { runMuxer() }()
+	go func() { /* runMuxer() */ }()
 	time.Sleep(time.Second)
 	base := "http://localhost:8080"
 	printRes(base + "/hello/world/PARAM/wildy")
-	printRes(base + "/hello/world/regex/wildy/wow")
+	printRes(base + "/hello/world/regex/anythingiwant/wow")
 	printRes(base + "/hello/WHATSUP")
 
 	select {}
@@ -26,6 +26,6 @@ func printRes(url string) {
 	}
 
 	data, _ := io.ReadAll(res.Body)
-	fmt.Println(string(data))
 
+	fmt.Println(string(data))
 }

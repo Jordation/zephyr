@@ -23,3 +23,8 @@ func TestListen(t *testing.T) {
 		panic("write errs: " + err.Error())
 	}
 }
+
+func Test_Zephman(t *testing.T) {
+	zeph := New()
+	zeph.Run(":3000")
+}
