@@ -24,7 +24,7 @@ func TestInsertRoutes(t *testing.T) {
 	)
 
 	for _, route := range routes {
-		root.addRoute(GetTokensFromRoute(nil, route), 0, nil)
+		root.insert(GetTokensFromRoute(nil, route), 0, nil, nil, false)
 	}
 
 	fmt.Println("router")

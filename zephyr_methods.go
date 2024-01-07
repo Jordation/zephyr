@@ -2,39 +2,45 @@ package zephyr
 
 import "net/http"
 
+// cascade will override the nodes setting
+func (z *Zephyr) RegisterMW(path string, mw []http.Handler, cascade bool) {
+	tokens := GetTokensFromRoute(nil, path)
+	z.muxer.Root.insert(tokens, 0, nil, mw, cascade)
+}
+
 func (z *Zephyr) GET(path string, f http.HandlerFunc) {
 	tokens := GetTokensFromRoute(nil, path)
-	z.muxer.Root.addRoute(tokens, MethodToIndexMap[http.MethodGet], f)
+	z.muxer.Root.insert(tokens, methodToIndexMap[http.MethodGet], f, nil, false)
 }
 func (z *Zephyr) HEAD(path string, f http.HandlerFunc) {
 	tokens := GetTokensFromRoute(nil, path)
-	z.muxer.Root.addRoute(tokens, MethodToIndexMap[http.MethodHead], f)
+	z.muxer.Root.insert(tokens, methodToIndexMap[http.MethodHead], f, nil, false)
 }
 func (z *Zephyr) POST(path string, f http.HandlerFunc) {
 	tokens := GetTokensFromRoute(nil, path)
-	z.muxer.Root.addRoute(tokens, MethodToIndexMap[http.MethodPost], f)
+	z.muxer.Root.insert(tokens, methodToIndexMap[http.MethodPost], f, nil, false)
 }
 func (z *Zephyr) PUT(path string, f http.HandlerFunc) {
 	tokens := GetTokensFromRoute(nil, path)
-	z.muxer.Root.addRoute(tokens, MethodToIndexMap[http.MethodPut], f)
+	z.muxer.Root.insert(tokens, methodToIndexMap[http.MethodPut], f, nil, false)
 }
 func (z *Zephyr) PATCH(path string, f http.HandlerFunc) {
 	tokens := GetTokensFromRoute(nil, path)
-	z.muxer.Root.addRoute(tokens, MethodToIndexMap[http.MethodPatch], f)
+	z.muxer.Root.insert(tokens, methodToIndexMap[http.MethodPatch], f, nil, false)
 }
 func (z *Zephyr) DELETE(path string, f http.HandlerFunc) {
 	tokens := GetTokensFromRoute(nil, path)
-	z.muxer.Root.addRoute(tokens, MethodToIndexMap[http.MethodDelete], f)
+	z.muxer.Root.insert(tokens, methodToIndexMap[http.MethodDelete], f, nil, false)
 }
 func (z *Zephyr) CONNECT(path string, f http.HandlerFunc) {
 	tokens := GetTokensFromRoute(nil, path)
-	z.muxer.Root.addRoute(tokens, MethodToIndexMap[http.MethodConnect], f)
+	z.muxer.Root.insert(tokens, methodToIndexMap[http.MethodConnect], f, nil, false)
 }
 func (z *Zephyr) OPTIONS(path string, f http.HandlerFunc) {
 	tokens := GetTokensFromRoute(nil, path)
-	z.muxer.Root.addRoute(tokens, MethodToIndexMap[http.MethodOptions], f)
+	z.muxer.Root.insert(tokens, methodToIndexMap[http.MethodOptions], f, nil, false)
 }
 func (z *Zephyr) TRACE(path string, f http.HandlerFunc) {
 	tokens := GetTokensFromRoute(nil, path)
-	z.muxer.Root.addRoute(tokens, MethodToIndexMap[http.MethodTrace], f)
+	z.muxer.Root.insert(tokens, methodToIndexMap[http.MethodTrace], f, nil, false)
 }

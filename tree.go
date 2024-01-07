@@ -9,25 +9,28 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Node struct {
-	Type RouteType
+type node struct {
+	routeType RouteType
 
-	Rgx *regexp.Regexp
+	rgx *regexp.Regexp
 
-	Value string
+	value string
 
-	Leaf bool
+	leaf bool
 
-	IsHandler bool
+	isHandler bool
 
-	Handlers []http.HandlerFunc
+	handlers []http.HandlerFunc
 
-	Children
+	mw      []http.Handler
+	cascade bool
+
+	children
 }
 
-type Children []*Node
+type children []*node
 
-var MethodToIndexMap = map[string]uint8{
+var methodToIndexMap = map[string]uint8{
 	http.MethodGet:     0,
 	http.MethodPost:    1,
 	http.MethodPatch:   2,
@@ -41,49 +44,76 @@ var MethodToIndexMap = map[string]uint8{
 
 func newHandlers() []http.HandlerFunc {
 	hfs := make([]http.HandlerFunc, 9)
-	for i := range hfs {
-		hfs[i] = func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusNotFound)
-		}
-	}
 	return hfs
 }
 
-func (n *Node) configureCtx(ctx *Context, r *http.Request) {
-	path := r.URL.Path
+// traverse returns nil upon a successful walk to handler and otherwise, the last node it got to
+func (n *node) traverse(ctx *Context, routeSegs []string, root bool) *node {
+	if len(routeSegs) == 0 {
+		ctx.Handler = n.handlers[ctx.Method]
+		return nil
+	}
+
+	if n.cascade {
+		ctx.Mw = append(ctx.Mw, n.mw...)
+	}
+
+	if root {
+		ctx.Handler = n.handlers[ctx.Method]
+		return nil
+	}
+
+	// anything else i.e. {/}hello
+	head, tail := ht(routeSegs)
+
+	next := n.findMatchingChildWithCtx(head, ctx)
+	if next == nil {
+		return n
+	}
+
+	return next.traverse(ctx, tail, root)
 }
 
-func (n *Node) addRoute(segments []RouteToken, methodIndex uint8, hf http.HandlerFunc) {
+func (n *node) insert(segments []RouteToken, methodIndex uint8, hf http.HandlerFunc, mw []http.Handler, cascade bool) {
 	head, tail := ht(segments)
 	if !n.matches(head) {
-		logrus.Errorf("node.insertRoute: could not traverse %#v:%v with %v:%v", n.Type, n.Value, head.Type, head.Value)
+		logrus.Errorf("node.insert: could not traverse %v:%v with %v:%v", n.routeType, n.value, head.Type, head.Value)
 		return
 	}
 
 	if len(tail) == 0 {
-		n.Handlers[methodIndex] = hf
-		logrus.Infof("node.insertRoute: assigned handler %v to %v:%v", methodIndex, n.Type, n.Value)
+		if hf != nil {
+			n.handlers[methodIndex] = hf
+			logrus.Infof("node.insert: assigned handler %v to %v:%v", methodIndex, n.routeType, n.value)
+		}
+
+		if len(mw) != 0 {
+			n.cascade = cascade
+			n.mw = append(n.mw, mw...)
+			logrus.Infof("node.insert: assigned %v mw to %v:%v", len(mw), n.routeType, n.value)
+		}
+
 		return
 	}
 
 	// at this stage, we know that the route is not fully consumed
 	// and that we are in the right place
 
-	next := tail[0]
+	curr := tail[0]
 
-	child := n.findMatchingChild(next)
-	if child == nil {
-		child = newNode(next)
-		n.addChild(child)
+	next := n.findMatchingChild(curr)
+	if next == nil {
+		next = newNode(curr)
+		n.addChild(next)
 	}
 
-	child.addRoute(tail, methodIndex, hf)
+	next.insert(tail, methodIndex, hf, mw, cascade)
 
-	n.Leaf = len(n.Children) == 0
+	n.leaf = len(n.children) == 0
 }
 
-func (n *Node) findMatchingChild(toke RouteToken) *Node {
-	for _, child := range n.Children {
+func (n *node) findMatchingChild(toke RouteToken) *node {
+	for _, child := range n.children {
 		if child.matches(toke) {
 			return child
 		}
@@ -92,30 +122,52 @@ func (n *Node) findMatchingChild(toke RouteToken) *Node {
 	return nil
 }
 
-func (n *Node) matches(toke RouteToken) bool {
-	return n.Value == toke.Value && n.Type == toke.Type
+func (n *node) findMatchingChildWithCtx(route string, ctx *Context) *node {
+	for _, c := range n.children {
+		switch c.routeType {
+		case Path:
+			if c.value == route {
+				return c
+			}
+		case Regex:
+			if c.rgx.Match([]byte(route)) {
+				return c
+			}
+		case Param:
+			ctx.Vars.Set(c.value, route)
+			return c
+		case WildCard:
+			return c
+		}
+	}
+
+	return nil
 }
 
-func (n *Node) addChild(child *Node) {
-	if len(n.Children) == 0 {
-		n.Children = Children{child}
+func (n *node) matches(toke RouteToken) bool {
+	return n.value == toke.Value && n.routeType == toke.Type
+}
+
+func (n *node) addChild(child *node) {
+	if len(n.children) == 0 {
+		n.children = children{child}
 		return
 	}
 
-	i := sort.Search(len(n.Children), func(i int) bool {
-		return n.Children[i].Type >= n.Type
+	i := sort.Search(len(n.children), func(i int) bool {
+		return n.children[i].routeType >= n.routeType
 	})
 
-	n.Children = slices.Insert(n.Children, i, child)
+	n.children = slices.Insert(n.children, i, child)
 }
 
-func newNode(token RouteToken) *Node {
-	n := &Node{
-		Type:     token.Type,
-		Value:    token.Value,
-		Children: Children{},
-		Handlers: newHandlers(),
-		Leaf:     true,
+func newNode(token RouteToken) *node {
+	n := &node{
+		routeType: token.Type,
+		value:     token.Value,
+		children:  children{},
+		handlers:  newHandlers(),
+		leaf:      true,
 	}
 
 	switch token.Type {
@@ -123,7 +175,7 @@ func newNode(token RouteToken) *Node {
 	case Param:
 	case WildCard:
 	case Regex:
-		n.Rgx = regexp.MustCompile(token.Value)
+		n.rgx = regexp.MustCompile(token.Value)
 	}
 
 	return n

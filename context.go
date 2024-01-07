@@ -22,13 +22,31 @@ func newContext() *Context {
 type Context struct {
 	Handler http.HandlerFunc
 
-	Mw []http.HandlerFunc
+	Mw []http.Handler
 
 	Vars *RouteVars
 
 	Method uint8 // we use a map to convert method to an index
 
-	Routes *Node
+	Routes *node
+}
+
+func (ctx *Context) configure(r *http.Request) {
+	ctx.Method = methodToIndexMap[r.Method]
+
+	isRoot := r.URL.Path == "/"
+	route := cleanRouteSegs(r.URL.Path)
+
+	last := ctx.Routes.traverse(ctx, route, isRoot)
+	if last != nil { // wasn't able to traverse the full route
+		ctx.Handler = http.NotFound
+	}
+
+	if ctx.Handler == nil { // no handler registered for method of r
+		ctx.Handler = func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}
 }
 
 func (c *Context) reset() {

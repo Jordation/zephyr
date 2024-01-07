@@ -9,11 +9,11 @@ import (
 
 func newMuxer() *muxer {
 	m := &muxer{
-		Root: &Node{
-			Type:     Root,
-			Value:    "/",
-			Handlers: newHandlers(),
-			Leaf:     true,
+		Root: &node{
+			routeType: Root,
+			value:     "/",
+			handlers:  newHandlers(),
+			leaf:      true,
 		},
 
 		pool: &sync.Pool{New: func() any { return newContext() }},
@@ -30,7 +30,7 @@ func newMuxer() *muxer {
 }
 
 type muxer struct {
-	Root *Node
+	Root *node
 
 	Server *http.Server
 
@@ -38,15 +38,15 @@ type muxer struct {
 }
 
 func (m *muxer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ztx := newContext()
+	ctx := newContext()
 
 	// configure the ctx
-	ztx.Routes = m.Root
-	ztx.configure(r)
+	ctx.Routes = m.Root
+	ctx.configure(r)
 
 	// serve with the ctx
-	r = r.WithContext(context.WithValue(r.Context(), "special-context", ztx))
-	ztx.Handler.ServeHTTP(w, r)
+	r = r.WithContext(context.WithValue(r.Context(), "special-context", ctx))
+	ctx.Handler.ServeHTTP(w, r)
 }
 
 func Vars(ctx context.Context, key string) string {

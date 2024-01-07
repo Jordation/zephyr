@@ -25,6 +25,6 @@ func TestListen(t *testing.T) {
 }
 
 func Test_Zephman(t *testing.T) {
-	zeph := New()
-	zeph.Run(":3000")
+
+	// test middlewares are applied
 }

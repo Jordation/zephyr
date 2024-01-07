@@ -85,3 +85,7 @@ func (z *Zephyr) registerViews() error {
 	}
 	return nil
 }
+
+func cleanRouteSegs(route string) []string {
+	return strings.Split(strings.Trim(route, "/"), "/")
+}
