@@ -52,7 +52,16 @@ func Test_Zephman(t *testing.T) {
 			usageRoute: "/hello",
 			handler:    defaultHandler("/hello"),
 			expectBody: []byte("/hello"),
-			mw:         []http.Handler{},
+			mw: []http.Handler{
+				http.HandlerFunc(
+					func(w http.ResponseWriter, r *http.Request) {
+						w.Header().Add("X-test", "headoh")
+					},
+				),
+			},
+			expectHeaders: http.Header{
+				"X-text": []string{"headoh"},
+			},
 		},
 		{
 			inputRoute: "/hello/world",
@@ -86,6 +95,7 @@ func Test_Zephman(t *testing.T) {
 	z := New()
 	for _, s := range tests {
 		z.GET(s.inputRoute, s.handler)
+		z.RegisterMW(s.inputRoute, s.mw, false)
 	}
 
 	go func() {
@@ -102,6 +112,14 @@ func Test_Zephman(t *testing.T) {
 
 			body, _ := io.ReadAll(res.Body)
 			assert.Equal(t, s.expectBody, body, "mismatch body for test on route %v, expected: %v, got: %v", s.usageRoute, string(s.expectBody), string(body))
+
+			if s.expectVars != nil {
+				//assert.Equal(t, Vars())
+			}
+
+			if s.expectHeaders != nil {
+				assert.Equal(t, s.expectHeaders.Get("X-test"), res.Header.Get("X-test"))
+			}
 		})
 
 	}

@@ -46,7 +46,7 @@ func (m *muxer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// serve with the ctx
 	r = r.WithContext(context.WithValue(r.Context(), "special-context", ctx))
-	ctx.Handler.ServeHTTP(w, r)
+	serve(ctx.Handler, w, r, ctx.Mw)
 }
 
 func Vars(ctx context.Context, key string) string {
@@ -56,4 +56,11 @@ func Vars(ctx context.Context, key string) string {
 	}
 
 	return realCtx.Vars.Get(key)
+}
+
+func serve(hf http.HandlerFunc, w http.ResponseWriter, r *http.Request, mw []http.Handler) {
+	for _, handler := range mw {
+		handler.ServeHTTP(w, r)
+	}
+	hf.ServeHTTP(w, r)
 }
