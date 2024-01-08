@@ -1,7 +1,6 @@
 package zephyr
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -26,6 +25,4 @@ func TestInsertRoutes(t *testing.T) {
 	for _, route := range routes {
 		root.insert(GetTokensFromRoute(nil, route), 0, nil, nil, false)
 	}
-
-	fmt.Println("router")
 }

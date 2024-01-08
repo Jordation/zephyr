@@ -50,6 +50,7 @@ func newHandlers() []http.HandlerFunc {
 func (n *node) traverse(ctx *Context, routeSegs []string) *node {
 	if len(routeSegs) == 0 {
 		ctx.Handler = n.handlers[ctx.Method]
+		ctx.Mw = n.mw
 		return nil
 	}
 

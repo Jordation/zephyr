@@ -2,31 +2,11 @@ package zephyr
 
 import (
 	"io"
-	"net"
 	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
-
-func TestListen(t *testing.T) {
-	ln, err := net.Listen("tcp", ":3000")
-	if err != nil {
-		panic("listen err: " + err.Error())
-	}
-	defer ln.Close()
-
-	conn, err := ln.Accept()
-	if err != nil {
-		panic("accept err: " + err.Error())
-	}
-
-	buff := []byte("hello world!")
-	_, err = conn.Write(buff)
-	if err != nil {
-		panic("write errs: " + err.Error())
-	}
-}
 
 type testScenario struct {
 	name          string
@@ -55,12 +35,12 @@ func Test_Zephman(t *testing.T) {
 			mw: []http.Handler{
 				http.HandlerFunc(
 					func(w http.ResponseWriter, r *http.Request) {
-						w.Header().Add("X-test", "headoh")
+						w.Header().Add("X-test", "yipee")
 					},
 				),
 			},
 			expectHeaders: http.Header{
-				"X-text": []string{"headoh"},
+				http.CanonicalHeaderKey("X-test"): []string{"yipee"},
 			},
 		},
 		{
@@ -110,15 +90,15 @@ func Test_Zephman(t *testing.T) {
 			}
 			defer res.Body.Close()
 
+			if s.expectHeaders != nil {
+				assert.Equal(t, s.expectHeaders.Get("X-test"), res.Header.Get("X-test"))
+			}
+
 			body, _ := io.ReadAll(res.Body)
 			assert.Equal(t, s.expectBody, body, "mismatch body for test on route %v, expected: %v, got: %v", s.usageRoute, string(s.expectBody), string(body))
 
 			if s.expectVars != nil {
 				//assert.Equal(t, Vars())
-			}
-
-			if s.expectHeaders != nil {
-				assert.Equal(t, s.expectHeaders.Get("X-test"), res.Header.Get("X-test"))
 			}
 		})
 

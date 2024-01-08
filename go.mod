@@ -3,11 +3,6 @@ module github.com/Jordation/zephyr
 go 1.21.0
 
 require (
-	github.com/jmoiron/sqlx v1.3.5
-	github.com/lib/pq v1.10.9
-)
-
-require (
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
