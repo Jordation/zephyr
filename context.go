@@ -33,11 +33,14 @@ type Context struct {
 
 func (ctx *Context) configure(r *http.Request) {
 	ctx.Method = methodToIndexMap[r.Method]
-
 	isRoot := r.URL.Path == "/"
-	route := cleanRouteSegs(r.URL.Path)
+	path := cleanRouteSegs(r.URL.Path)
 
-	last := ctx.Routes.traverse(ctx, route, isRoot)
+	if isRoot {
+		path = nil // will set the handler to the first node traverse is called on
+	}
+
+	last := ctx.Routes.traverse(ctx, path)
 	if last != nil { // wasn't able to traverse the full route
 		ctx.Handler = http.NotFound
 	}

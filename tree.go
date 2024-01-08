@@ -18,9 +18,8 @@ type node struct {
 
 	leaf bool
 
+	handlers  []http.HandlerFunc
 	isHandler bool
-
-	handlers []http.HandlerFunc
 
 	mw      []http.Handler
 	cascade bool
@@ -48,7 +47,7 @@ func newHandlers() []http.HandlerFunc {
 }
 
 // traverse returns nil upon a successful walk to handler and otherwise, the last node it got to
-func (n *node) traverse(ctx *Context, routeSegs []string, root bool) *node {
+func (n *node) traverse(ctx *Context, routeSegs []string) *node {
 	if len(routeSegs) == 0 {
 		ctx.Handler = n.handlers[ctx.Method]
 		return nil
@@ -56,11 +55,6 @@ func (n *node) traverse(ctx *Context, routeSegs []string, root bool) *node {
 
 	if n.cascade {
 		ctx.Mw = append(ctx.Mw, n.mw...)
-	}
-
-	if root {
-		ctx.Handler = n.handlers[ctx.Method]
-		return nil
 	}
 
 	// anything else i.e. {/}hello
@@ -71,10 +65,14 @@ func (n *node) traverse(ctx *Context, routeSegs []string, root bool) *node {
 		return n
 	}
 
-	return next.traverse(ctx, tail, root)
+	return next.traverse(ctx, tail)
 }
 
 func (n *node) insert(segments []RouteToken, methodIndex uint8, hf http.HandlerFunc, mw []http.Handler, cascade bool) {
+	defer func() {
+		n.leaf = len(n.children) == 0
+	}()
+
 	head, tail := ht(segments)
 	if !n.matches(head) {
 		logrus.Errorf("node.insert: could not traverse %v:%v with %v:%v", n.routeType, n.value, head.Type, head.Value)
@@ -84,15 +82,14 @@ func (n *node) insert(segments []RouteToken, methodIndex uint8, hf http.HandlerF
 	if len(tail) == 0 {
 		if hf != nil {
 			n.handlers[methodIndex] = hf
+			n.isHandler = true
 			logrus.Infof("node.insert: assigned handler %v to %v:%v", methodIndex, n.routeType, n.value)
 		}
-
 		if len(mw) != 0 {
 			n.cascade = cascade
 			n.mw = append(n.mw, mw...)
 			logrus.Infof("node.insert: assigned %v mw to %v:%v", len(mw), n.routeType, n.value)
 		}
-
 		return
 	}
 
@@ -108,8 +105,6 @@ func (n *node) insert(segments []RouteToken, methodIndex uint8, hf http.HandlerF
 	}
 
 	next.insert(tail, methodIndex, hf, mw, cascade)
-
-	n.leaf = len(n.children) == 0
 }
 
 func (n *node) findMatchingChild(toke RouteToken) *node {
@@ -155,7 +150,7 @@ func (n *node) addChild(child *node) {
 	}
 
 	i := sort.Search(len(n.children), func(i int) bool {
-		return n.children[i].routeType >= n.routeType
+		return n.children[i].routeType < n.routeType
 	})
 
 	n.children = slices.Insert(n.children, i, child)

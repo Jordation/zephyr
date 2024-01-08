@@ -60,7 +60,7 @@ outer:
 			if end == -1 {
 				end = len(route)
 			}
-			tokes = append(tokes, newToken(Regex, route[i:end]))
+			tokes = append(tokes, newToken(Regex, route[i+1:end]))
 			break outer
 
 		default:

@@ -2,12 +2,11 @@ package zephyr
 
 import "net/http"
 
-// cascade will override the nodes setting
+// cascade will override the target nodes value
 func (z *Zephyr) RegisterMW(path string, mw []http.Handler, cascade bool) {
 	tokens := GetTokensFromRoute(nil, path)
 	z.muxer.Root.insert(tokens, 0, nil, mw, cascade)
 }
-
 func (z *Zephyr) GET(path string, f http.HandlerFunc) {
 	tokens := GetTokensFromRoute(nil, path)
 	z.muxer.Root.insert(tokens, methodToIndexMap[http.MethodGet], f, nil, false)

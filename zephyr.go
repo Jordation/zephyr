@@ -1,7 +1,6 @@
 package zephyr
 
 import (
-	"context"
 	"io"
 	"io/fs"
 	"net/http"
@@ -11,13 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type View interface {
-	Render(ctx context.Context, w io.Writer) error
-	http.Handler
-}
-
 type Zephyr struct {
-	Pages map[string]View
 	muxer *muxer
 	fs    fs.FS
 }
@@ -34,8 +27,6 @@ func (z *Zephyr) Run(addr string) error {
 	if !strings.Contains(addr, ":") {
 		addr = ":" + addr
 	}
-
-	z.registerViews()
 
 	return z.muxer.Server.ListenAndServe()
 }
@@ -69,20 +60,6 @@ func (z *Zephyr) RegisterFileServe(urlPattern, dir string) error {
 		logrus.Debugf("served %v", filePath)
 	})
 
-	return nil
-}
-
-func (z *Zephyr) AddViews(views map[string]View) error {
-	for path, view := range views {
-		z.Pages[path] = view
-	}
-	return nil
-}
-
-func (z *Zephyr) registerViews() error {
-	for path, view := range z.Pages {
-		z.GET(path, view.ServeHTTP)
-	}
 	return nil
 }
 
