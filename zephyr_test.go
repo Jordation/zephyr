@@ -15,7 +15,7 @@ type testScenario struct {
 	handler       http.HandlerFunc
 	mw            []http.Handler
 	expectVars    *RouteVars
-	expectBody    []byte
+	expectBody    string
 	expectHeaders http.Header
 }
 
@@ -31,13 +31,11 @@ func Test_Zephman(t *testing.T) {
 			inputRoute: "/hello",
 			usageRoute: "/hello",
 			handler:    defaultHandler("/hello"),
-			expectBody: []byte("/hello"),
+			expectBody: "/hello",
 			mw: []http.Handler{
-				http.HandlerFunc(
-					func(w http.ResponseWriter, r *http.Request) {
-						w.Header().Add("X-test", "yipee")
-					},
-				),
+				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Add("X-test", "yipee")
+				}),
 			},
 			expectHeaders: http.Header{
 				http.CanonicalHeaderKey("X-test"): []string{"yipee"},
@@ -47,19 +45,19 @@ func Test_Zephman(t *testing.T) {
 			inputRoute: "/hello/world",
 			usageRoute: "/hello/world",
 			handler:    defaultHandler("/hello/world"),
-			expectBody: []byte("/hello/world"),
+			expectBody: "/hello/world",
 		},
 		{
 			inputRoute: "/hello/~[0-9]{4}/world",
 			usageRoute: "/hello/1234/world",
 			handler:    defaultHandler("/hello/~[0-9]{4}/world"),
-			expectBody: []byte("/hello/~[0-9]{4}/world"),
+			expectBody: "/hello/~[0-9]{4}/world",
 		},
 		{
 			inputRoute: "/hello/{paramKey}",
 			usageRoute: "/hello/paramValue",
 			handler:    defaultHandler("/hello/{paramKey}"),
-			expectBody: []byte("/hello/{paramKey}"),
+			expectBody: "/hello/{paramKey}",
 			expectVars: &RouteVars{
 				Keys:   []string{"paramKey"},
 				Values: []string{"paramValue"},
@@ -68,7 +66,13 @@ func Test_Zephman(t *testing.T) {
 		{
 			inputRoute: "/hello/*",
 			usageRoute: "/hello/hadfasdhfalshfd",
-			expectBody: []byte("/hello/{paramKey}"),
+			expectBody: "/hello/{paramKey}",
+		},
+		{
+			inputRoute: "/@/*",
+			usageRoute: "/@/yolo.js",
+			handler:    DefaultFsHandler("/").ServeHTTP,
+			expectBody: "",
 		},
 	}
 
@@ -95,7 +99,7 @@ func Test_Zephman(t *testing.T) {
 			}
 
 			body, _ := io.ReadAll(res.Body)
-			assert.Equal(t, s.expectBody, body, "mismatch body for test on route %v, expected: %v, got: %v", s.usageRoute, string(s.expectBody), string(body))
+			assert.Equal(t, s.expectBody, string(body), "mismatch body for test on route %v, expected: %v, got: %v", s.usageRoute, string(s.expectBody), string(body))
 
 			if s.expectVars != nil {
 				//assert.Equal(t, Vars())

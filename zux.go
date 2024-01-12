@@ -38,29 +38,27 @@ type muxer struct {
 }
 
 func (m *muxer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := newContext()
+	ctx := m.pool.Get().(*zCtx)
 
-	// configure the ctx
-	ctx.Routes = m.Root
+	ctx.reset()
+	defer func() {
+		m.pool.Put(ctx)
+	}()
+
+	// configure
+	ctx.routes = m.Root
 	ctx.configure(r)
-
-	// serve with the ctx
 	r = r.WithContext(context.WithValue(r.Context(), "special-context", ctx))
-	serve(ctx.Handler, w, r, ctx.Mw)
+
+	// serve.
+	ctx.ServeHTTP(w, r)
 }
 
 func Vars(ctx context.Context, key string) string {
-	realCtx, ok := ctx.Value("special-context").(*Context)
+	realCtx, ok := ctx.Value("special-context").(*zCtx)
 	if !ok {
 		return ""
 	}
 
-	return realCtx.Vars.Get(key)
-}
-
-func serve(hf http.HandlerFunc, w http.ResponseWriter, r *http.Request, mw []http.Handler) {
-	for _, handler := range mw {
-		handler.ServeHTTP(w, r)
-	}
-	hf.ServeHTTP(w, r)
+	return realCtx.vars.Get(key)
 }

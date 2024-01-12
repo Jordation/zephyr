@@ -19,13 +19,15 @@ app/
 
 ```
 
-## Modules - Pick and choose
+## Potential Modules
 
 - [ ] Minimal db interface (sqlx wrapper or custom?)
-- [ ] Cache
-- [ ] Register Endpoints
-  - [ ] different endpoint type handlers? i.e. json/html
-- [ ] Register Middleware
+- [x] Cache
+- [ ] Build / bundle JS files 
+- [ ] Hot reload backend (go files)
+- [ ] Static FS
+- [x] Register Endpoints
+- [x] Register Middleware
 
 
 

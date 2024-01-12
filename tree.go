@@ -47,15 +47,15 @@ func newHandlers() []http.HandlerFunc {
 }
 
 // traverse returns nil upon a successful walk to handler and otherwise, the last node it got to
-func (n *node) traverse(ctx *Context, routeSegs []string) *node {
+func (n *node) traverse(ctx *zCtx, routeSegs []string) *node {
 	if len(routeSegs) == 0 {
-		ctx.Handler = n.handlers[ctx.Method]
-		ctx.Mw = n.mw
+		ctx.handler = n.handlers[ctx.method]
+		ctx.mw = n.mw
 		return nil
 	}
 
 	if n.cascade {
-		ctx.Mw = append(ctx.Mw, n.mw...)
+		ctx.mw = append(ctx.mw, n.mw...)
 	}
 
 	// anything else i.e. {/}hello
@@ -86,11 +86,13 @@ func (n *node) insert(segments []RouteToken, methodIndex uint8, hf http.HandlerF
 			n.isHandler = true
 			logrus.Infof("node.insert: assigned handler %v to %v:%v", methodIndex, n.routeType, n.value)
 		}
+
 		if len(mw) != 0 {
 			n.cascade = cascade
 			n.mw = append(n.mw, mw...)
 			logrus.Infof("node.insert: assigned %v mw to %v:%v", len(mw), n.routeType, n.value)
 		}
+
 		return
 	}
 
@@ -118,7 +120,7 @@ func (n *node) findMatchingChild(toke RouteToken) *node {
 	return nil
 }
 
-func (n *node) findMatchingChildWithCtx(route string, ctx *Context) *node {
+func (n *node) findMatchingChildWithCtx(route string, ctx *zCtx) *node {
 	for _, c := range n.children {
 		switch c.routeType {
 		case Path:
@@ -130,7 +132,7 @@ func (n *node) findMatchingChildWithCtx(route string, ctx *Context) *node {
 				return c
 			}
 		case Param:
-			ctx.Vars.Set(c.value, route)
+			ctx.vars.Set(c.value, route)
 			return c
 		case WildCard:
 			return c

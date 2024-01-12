@@ -2,12 +2,12 @@ package zephyr
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 )
 
-// nil bad.
-func GetCtx(ctx context.Context) *Context {
-	realCtx, ok := ctx.Value("special-context").(*Context)
+func GetCtx(ctx context.Context) *zCtx {
+	realCtx, ok := ctx.Value("special-context").(*zCtx)
 	if !ok {
 		panic("failed to get real context bro")
 	}
@@ -15,24 +15,41 @@ func GetCtx(ctx context.Context) *Context {
 	return realCtx
 }
 
-func newContext() *Context {
-	return &Context{}
+func newContext() *zCtx {
+	return &zCtx{}
 }
 
-type Context struct {
-	Handler http.HandlerFunc
+type zCtx struct {
+	handler http.HandlerFunc
 
-	Mw []http.Handler
+	mw []http.Handler
 
-	Vars *RouteVars
+	vars RouteVars
 
-	Method uint8 // we use a map to convert method to an index
+	method uint8 // we use a map to convert method to an index
 
-	Routes *node
+	routes *node
+
+	recover bool
 }
 
-func (ctx *Context) configure(r *http.Request) {
-	ctx.Method = methodToIndexMap[r.Method]
+func (ctx *zCtx) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if ctx.recover {
+		defer func() {
+			err := recover()
+			fmt.Println(err)
+		}()
+	}
+
+	for _, handler := range ctx.mw {
+		handler.ServeHTTP(w, r)
+	}
+
+	ctx.handler.ServeHTTP(w, r)
+}
+
+func (ctx *zCtx) configure(r *http.Request) {
+	ctx.method = methodToIndexMap[r.Method]
 	isRoot := r.URL.Path == "/"
 	path := cleanRouteSegs(r.URL.Path)
 
@@ -40,32 +57,42 @@ func (ctx *Context) configure(r *http.Request) {
 		path = nil // will set the handler to the first node traverse is called on
 	}
 
-	last := ctx.Routes.traverse(ctx, path)
+	last := ctx.routes.traverse(ctx, path)
 	if last != nil { // wasn't able to traverse the full route
-		ctx.Handler = http.NotFound
+		ctx.handler = http.NotFound
 	}
 
-	if ctx.Handler == nil { // no handler registered for method of r
-		ctx.Handler = func(w http.ResponseWriter, r *http.Request) {
+	if ctx.handler == nil { // no handler registered for method of r
+		ctx.handler = func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	}
 }
 
-func (c *Context) reset() {
-	c.Handler = nil
+func (c *zCtx) reset() {
+	c.handler = nil
 
-	c.Mw = c.Mw[:0]
+	c.mw = c.mw[:0]
 
-	c.Vars.Keys = c.Vars.Keys[:0]
+	c.vars.Reset()
 
-	c.Vars.Values = c.Vars.Values[:0]
+	c.method = 99
 
-	c.Method = 99
+	c.routes = nil
+
+	c.recover = false
+
 }
 
 type RouteVars struct {
 	Keys, Values []string
+}
+
+func (rv *RouteVars) Reset() {
+	if rv != nil {
+		rv.Keys = rv.Keys[:0]
+		rv.Values = rv.Values[:0]
+	}
 }
 
 func (rv *RouteVars) Set(key, value string) {
