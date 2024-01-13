@@ -1,9 +1,9 @@
 ## Potential Modules
 
 - [ ] Minimal db interface (sqlx wrapper or similar?)
-- [x] Cache
 - [ ] Build / bundle JS files 
 - [ ] Hot reload backend (go files)
+- [x] Cache
 - [x] Static FS
 - [x] Register Endpoints
 - [x] Register Middleware
@@ -93,5 +93,4 @@ func main(){
 Some helpful basic modules are provided 
 ... cache
 ... fileserve
-... build api wrapper
 ... hot reload 
