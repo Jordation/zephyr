@@ -55,6 +55,7 @@ func (dfs *defaultFS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("error opening file:" + err.Error()))
 		return
 	}
+	defer file.Close()
 
 	out, err := io.ReadAll(file)
 	w.Write(out)
