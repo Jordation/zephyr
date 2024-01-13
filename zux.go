@@ -4,40 +4,37 @@ import (
 	"context"
 	"net/http"
 	"sync"
-	"time"
 )
 
-func newMuxer() *muxer {
-	m := &muxer{
-		Root: &node{
+var ctxPool = &sync.Pool{
+	New: func() any { return newContext() },
+}
+
+func NewMux() *mux {
+	m := &mux{
+		root: &node{
 			routeType: Root,
 			value:     "/",
 			handlers:  newHandlers(),
-			leaf:      true,
 		},
 
-		pool: &sync.Pool{New: func() any { return newContext() }},
+		pool: ctxPool,
 	}
-
-	m.Server = &http.Server{
-		Handler:      m,
-		Addr:         ":3000",
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-	}
-
 	return m
 }
 
-type muxer struct {
-	Root *node
-
-	Server *http.Server
+type mux struct {
+	root *node
 
 	pool *sync.Pool
 }
 
-func (m *muxer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// Run is blocking
+func (m *mux) Run(addr string) error {
+	return http.ListenAndServe(addr, m)
+}
+
+func (m *mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := m.pool.Get().(*zCtx)
 
 	ctx.reset()
@@ -46,7 +43,7 @@ func (m *muxer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// configure
-	ctx.routes = m.Root
+	ctx.routes = m.root
 	ctx.configure(r)
 	r = r.WithContext(context.WithValue(r.Context(), "special-context", ctx))
 

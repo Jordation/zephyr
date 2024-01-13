@@ -9,6 +9,18 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var methodToIndexMap = map[string]uint8{
+	http.MethodGet:     0,
+	http.MethodPost:    1,
+	http.MethodPatch:   2,
+	http.MethodPut:     3,
+	http.MethodDelete:  4,
+	http.MethodTrace:   5,
+	http.MethodOptions: 6,
+	http.MethodConnect: 7,
+	http.MethodHead:    8,
+}
+
 type node struct {
 	routeType RouteType
 
@@ -29,23 +41,6 @@ type node struct {
 
 type children []*node
 
-var methodToIndexMap = map[string]uint8{
-	http.MethodGet:     0,
-	http.MethodPost:    1,
-	http.MethodPatch:   2,
-	http.MethodPut:     3,
-	http.MethodDelete:  4,
-	http.MethodTrace:   5,
-	http.MethodOptions: 6,
-	http.MethodConnect: 7,
-	http.MethodHead:    8,
-}
-
-func newHandlers() []http.HandlerFunc {
-	hfs := make([]http.HandlerFunc, 9)
-	return hfs
-}
-
 // traverse returns nil upon a successful walk to handler and otherwise, the last node it got to
 func (n *node) traverse(ctx *zCtx, routeSegs []string) *node {
 	if len(routeSegs) == 0 {
@@ -61,7 +56,7 @@ func (n *node) traverse(ctx *zCtx, routeSegs []string) *node {
 	// anything else i.e. {/}hello
 	head, tail := ht(routeSegs)
 
-	next := n.findMatchingChildWithCtx(head, ctx)
+	next := n.findMatchingChildWithCtx(ctx, head)
 	if next == nil {
 		return n
 	}
@@ -69,7 +64,7 @@ func (n *node) traverse(ctx *zCtx, routeSegs []string) *node {
 	return next.traverse(ctx, tail)
 }
 
-func (n *node) insert(segments []RouteToken, methodIndex uint8, hf http.HandlerFunc, mw []http.Handler, cascade bool) {
+func (n *node) insert(segments []RouteToken, method uint8, hf http.HandlerFunc, mw []http.Handler, cascade bool) {
 	defer func() {
 		n.leaf = len(n.children) == 0
 	}()
@@ -82,9 +77,9 @@ func (n *node) insert(segments []RouteToken, methodIndex uint8, hf http.HandlerF
 
 	if len(tail) == 0 {
 		if hf != nil {
-			n.handlers[methodIndex] = hf
+			n.handlers[method] = hf
 			n.isHandler = true
-			logrus.Infof("node.insert: assigned handler %v to %v:%v", methodIndex, n.routeType, n.value)
+			logrus.Infof("node.insert: assigned handler %v to %v:%v", method, n.routeType, n.value)
 		}
 
 		if len(mw) != 0 {
@@ -107,7 +102,7 @@ func (n *node) insert(segments []RouteToken, methodIndex uint8, hf http.HandlerF
 		n.addChild(next)
 	}
 
-	next.insert(tail, methodIndex, hf, mw, cascade)
+	next.insert(tail, method, hf, mw, cascade)
 }
 
 func (n *node) findMatchingChild(toke RouteToken) *node {
@@ -120,7 +115,7 @@ func (n *node) findMatchingChild(toke RouteToken) *node {
 	return nil
 }
 
-func (n *node) findMatchingChildWithCtx(route string, ctx *zCtx) *node {
+func (n *node) findMatchingChildWithCtx(ctx *zCtx, route string) *node {
 	for _, c := range n.children {
 		switch c.routeType {
 		case Path:
@@ -185,4 +180,9 @@ func ht[S any](s []S) (S, []S) {
 	} else {
 		return s[0], s[1:]
 	}
+}
+
+func newHandlers() []http.HandlerFunc {
+	hfs := make([]http.HandlerFunc, 9)
+	return hfs
 }

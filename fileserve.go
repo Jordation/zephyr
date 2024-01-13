@@ -60,7 +60,3 @@ func (dfs *defaultFS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	out, err := io.ReadAll(file)
 	w.Write(out)
 }
-
-func setHeader(w http.ResponseWriter, key, value string) {
-	w.Header().Set(key, value)
-}

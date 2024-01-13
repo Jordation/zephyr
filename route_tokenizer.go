@@ -7,12 +7,10 @@ import (
 type RouteType int8
 
 const (
-	Separator RouteType = iota
-	Path
+	Path RouteType = iota
 	Regex
 	Param
 	WildCard
-	EndRoute
 	Root
 )
 

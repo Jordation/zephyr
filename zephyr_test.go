@@ -72,14 +72,14 @@ func Test_Zephman(t *testing.T) {
 			inputRoute: "/@/*",
 			usageRoute: "/@/yolo.js",
 			handler:    DefaultFsHandler("/").ServeHTTP,
-			expectBody: "",
+			expectBody: "error opening file:open yolo.js: The system cannot find the file specified.",
 		},
 	}
 
 	z := New()
 	for _, s := range tests {
 		z.GET(s.inputRoute, s.handler)
-		z.RegisterMW(s.inputRoute, s.mw, false)
+		z.Use(s.inputRoute, false, s.mw...)
 	}
 
 	go func() {
